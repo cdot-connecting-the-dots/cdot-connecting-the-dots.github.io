@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connecting the Dots</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #141414;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    /* Container for the entire scene */
+    #scene {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* 1) Typing text (the "\cdot") */
+    #typing {
+      position: absolute;
+      top: 45vh;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      opacity: 1;
+      transition: opacity 0.8s ease;
+    }
+    /* Hidden state for fade-out */
+    #typing.fade-out {
+      opacity: 0;
+    }
+
+    /* 2) Final dot (⋅) with initial scale=0 (pop-in effect) */
+    #final-dot {
+      position: absolute;
+      top: 45vh;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      font-size: 3rem;
+      opacity: 0;
+      color: #ffffff;
+      transition: transform 0.8s ease, opacity 0.8s ease;
+    }
+    /* Show & scale up the final dot */
+    #final-dot.show {
+      transform: translateX(-50%) scale(1);
+      opacity: 1;
+    }
+
+    /* 3) Slogan ("connecting the dots") */
+    #slogan {
+      position: absolute;
+      top: 55vh;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    /* Slogan fade-in */
+    #slogan.show {
+      opacity: 1;
+    }
+
+    /* 4) Canvas for the networking dots */
+    #network {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      /* Start invisible and fade in */
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+    /* Visible state for the canvas */
+    #network.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="scene">
+    <!-- 1) The text to type ( "\cdot" ) -->
+    <div id="typing"></div>
+    
+    <!-- 2) The final dot ( "⋅" ) that appears with a scale-up -->
+    <div id="final-dot">⋅</div>
+    
+    <!-- 3) Slogan ("connecting the dots") that fades in -->
+    <div id="slogan">connecting the dots</div>
+    
+    <!-- 4) Canvas for the network effect -->
+    <canvas id="network"></canvas>
+  </div>
+
+  <script>
+    // --------------------
+    // Typing effect logic
+    // --------------------
+    const textToType  = "\\cdot"; // The text to type
+    const typingSpeed = 120;      // Speed for each character (ms)
+    const typingEl    = document.getElementById("typing");
+    const finalDotEl  = document.getElementById("final-dot");
+    const sloganEl    = document.getElementById("slogan");
+    const canvas      = document.getElementById("network");
+    const ctx         = canvas.getContext("2d");
+
+    let typingIndex = 0;
+
+    function typeText() {
+      if (typingIndex < textToType.length) {
+        typingEl.innerHTML += textToType.charAt(typingIndex);
+        typingIndex++;
+        setTimeout(typeText, typingSpeed);
+      } else {
+        // Once fully typed, wait a moment, then fade out
+        setTimeout(() => {
+          typingEl.classList.add("fade-out");
+          // After fade-out finishes, hide the typed text & show the final dot
+          setTimeout(() => {
+            typingEl.style.display = "none";
+            showFinalDot();
+          }, 800);
+        }, 600);
+      }
+    }
+
+    // --------------------
+    // Show & animate the final HTML dot
+    // --------------------
+    function showFinalDot() {
+      // Reveal final dot with scale animation
+      finalDotEl.classList.add("show");
+
+      // Also show (fade in) the canvas for the network
+      canvas.classList.add("show");
+
+      // Start the network animation (includes the same center dot)
+      startNetworkAnimation();
+
+      // After a short overlap, hide the HTML dot so only the canvas dot remains
+      setTimeout(() => {
+        finalDotEl.style.display = "none";
+      }, 1000);
+
+      // Finally, fade in the slogan after the dot has appeared
+      setTimeout(() => {
+        sloganEl.classList.add("show");
+      }, 1200);
+    }
+
+    // --------------------
+    // Canvas + Network logic
+    // --------------------
+    let width  = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width  = width;
+    canvas.height = height;
+
+    // Number of “dots” (particles)
+    const maxParticles = 30;
+    const maxDistance  = 150;
+    const particles    = [];
+
+    function createParticles() {
+      // The "first" dot at the same position as the HTML dot:
+      // top: 45vh --> y ~ height * 0.45
+      particles.push({
+        x: width * 0.5,
+        y: height * 0.45,
+        vx: 0,
+        vy: 0,
+      });
+
+      // Additional random dots
+      for (let i = 1; i < maxParticles; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+        });
+      }
+    }
+
+    // Distance helper
+    function distance(a, b) {
+      return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    }
+
+    // Animation loop
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+
+      // Move and draw each dot
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Bounce off the edges
+        if (p.x < 0 || p.x > width)  p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, 2 * Math.PI);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+      }
+
+      // Draw lines between close dots
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dist = distance(particles[i], particles[j]);
+          if (dist < maxDistance) {
+            ctx.strokeStyle = `rgba(255, 255, 255, ${1 - dist / maxDistance})`;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function startNetworkAnimation() {
+      createParticles();
+      animate();
+    }
+
+    // --------------------
+    // Handle window resize
+    // --------------------
+    window.addEventListener("resize", () => {
+      width         = window.innerWidth;
+      height        = window.innerHeight;
+      canvas.width  = width;
+      canvas.height = height;
+      // Re-create the particles so the "first" one re-aligns
+      particles.length = 0;
+      createParticles();
+    });
+
+    // --------------------
+    // Start everything
+    // --------------------
+    typeText();
+  </script>
+</body>
+</html>
